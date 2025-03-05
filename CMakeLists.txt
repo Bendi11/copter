@@ -3,7 +3,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 project(
     bingofc
-    LANGUAGES CXX
+    LANGUAGES CXX C ASM
     VERSION 0.1.0
 )
 
@@ -41,9 +41,15 @@ file(
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
 )
 
-set(LINKER_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/src/system/stm32f405.x")
+set(LINKER_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/src/system/stm32/ld/stm32f405.x")
+
+list(APPEND SRC "${cmsis_SOURCE_DIR}/Source/Templates/gcc/startup_stm32f405xx.s")
 
 add_executable(${CMAKE_PROJECT_NAME} ${SRC})
+
+target_compile_definitions(
+    ${CMAKE_PROJECT_NAME} PRIVATE STM32F405xx USE_PTHREADS=0
+)
 
 target_include_directories(
     ${CMAKE_PROJECT_NAME}
@@ -60,7 +66,6 @@ SET(CMAKE_C_STANDARD_LIBRARIES "")
 target_link_options(
     ${CMAKE_PROJECT_NAME}
     PUBLIC "-T${LINKER_SCRIPT}"
-    PUBLIC "--specs=nano.specs"
     PUBLIC "-nodefaultlibs"
 )
 
