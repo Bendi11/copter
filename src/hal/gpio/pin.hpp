@@ -8,9 +8,10 @@ namespace hal {
 
 namespace gpio {
 
+/// 
 template<typename T>
-concept OutputPin = requires(T& v) {
-    { v.set(std::declval<bool>()) };
+concept PushPullPin = requires(T& v) {
+    { v.push_pull(std::declval<bool>()) };
 };
 
 }
