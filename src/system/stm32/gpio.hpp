@@ -2,13 +2,13 @@
 
 #include <cstdint>
 #include "hal/gpio/pin.hpp"
+#include "hal/types.hpp"
 #include "system/comptime.hpp"
+#include "system/stm32/regs.hpp"
 
 namespace stm32::gpio {
 
 namespace _ {
-
-using reg_t = volatile std::uint32_t;
 
 struct GPIO {
   reg_t MODER;    /*!< GPIO port mode register,               Address offset: 0x00      */
@@ -24,36 +24,53 @@ struct GPIO {
 
 }
 
-template<std::uint32_t ADDR>
+struct GpioRegBlockDescriptor {
+    addr_t ADDR;
+};
+
+template<typename T>
+types::Empty GpioRegBlockData;
+
+template<typename T>
+concept GpioBlock = requires() {
+    { GpioRegBlockData<T> } -> std::same_as<GpioRegBlockDescriptor>;
+};
+
+template<GpioRegBlockDescriptor Regs>
 struct Block;
 
-template<std::uint32_t ADDR, std::uint8_t IDX>
+template<GpioRegBlockDescriptor Regs, std::uint8_t IDX>
+struct PushPullPin;
+
+template<GpioRegBlockDescriptor Regs, std::uint8_t IDX>
 struct Pin {
 public:
-    inline constexpr void push_pull() {
-        REG->MODER |= (1 << (IDX * 2));
-    }
-    
-
     [[gnu::always_inline]]
-    inline constexpr void push_pull(bool o) {
-        REG->BSRR |= (1 << IDX) << ((std::uint8_t)(!o) << 4);
+    inline constexpr PushPullPin<Regs, IDX> mode_push_pull() const {
+        REG->MODER |= (1 << (IDX << 1));
+        return PushPullPin<Regs, IDX>();
+    }
+protected:
+    inline constexpr Pin() {}
+    static inline constexpr comptime::RegisterBlock<_::GPIO, Regs.ADDR> REG{};
+private:
+    friend struct Block<Regs>;
+};
+
+template<GpioRegBlockDescriptor Regs, std::uint8_t IDX>
+struct PushPullPin : public Pin<Regs, IDX> {
+public:
+    [[gnu::always_inline]]
+    inline constexpr void push_pull(bool output) const {
+        Pin<Regs, IDX>::REG->BSRR |= (1 << IDX) << (!output << 4);
     }
 private:
-    inline constexpr Pin() {}
-    friend struct Block<ADDR>;
-
-    static inline constexpr comptime::RegisterBlock<_::GPIO, ADDR> REG{};
+    PushPullPin() {}
+    friend struct Pin<Regs, IDX>;
 };
 
-static_assert(hal::gpio::PushPullPin<Pin<0, 0>>);
 
-template<std::uint32_t ADDR, std::uint8_t IDX>
-struct PushPullPin : public Pin<ADDR, IDX> {
-    
-};
-
-template<std::uint32_t ADDR>
+template<GpioRegBlockDescriptor ADDR>
 struct Block {
 public:
     template<std::uint8_t IDX>
